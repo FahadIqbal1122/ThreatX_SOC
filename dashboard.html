@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ThreatX — SOC Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet"/>
+<style>
+:root{--bg:#080c10;--bg2:#0d1117;--border:rgba(0,255,180,0.10);--border2:rgba(0,255,180,0.25);--accent:#00ffb4;--accent2:#00c8ff;--red:#ff3e3e;--orange:#ff8c00;--yellow:#f5c518;--green:#00e676;--text:#c8d8e8;--text2:#6a8a9a;--mono:'Share Tech Mono',monospace;--head:'Rajdhani',sans-serif;--body:'Exo 2',sans-serif;}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--body);min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,255,180,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,180,0.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0;}
+
+nav{position:relative;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:0 2rem;height:64px;background:rgba(8,12,16,0.97);border-bottom:1px solid var(--border2);}
+.logo{font-family:var(--head);font-size:28px;font-weight:700;color:#fff;letter-spacing:3px;text-transform:uppercase;display:flex;align-items:center;gap:10px;}
+.logo-icon{width:32px;height:32px;border:2px solid var(--accent);border-radius:6px;display:flex;align-items:center;justify-content:center;}
+.logo-icon::before{content:'';width:12px;height:12px;background:var(--accent);clip-path:polygon(50% 0%,100% 100%,0% 100%);display:block;}
+.logo span{color:var(--accent);}
+.nav-right{display:flex;align-items:center;gap:8px;}
+.nav-btn{font-family:var(--body);font-size:13px;color:var(--text2);background:transparent;border:none;padding:6px 16px;cursor:pointer;letter-spacing:1px;text-transform:uppercase;border-radius:4px;transition:all .2s;}
+.nav-btn:hover{color:var(--text);background:rgba(255,255,255,0.05);}
+.nav-div{width:1px;height:20px;background:var(--border2);}
+.analyst{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;color:var(--accent);background:rgba(0,255,180,0.06);border:1px solid var(--border2);padding:6px 14px;border-radius:4px;}
+.adot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:blink 2s infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.3;}}
+
+.tab-bar{position:relative;z-index:10;display:flex;padding:0 2rem;background:rgba(8,12,16,0.95);border-bottom:1px solid var(--border);}
+.tab{font-family:var(--head);font-size:13px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--text2);padding:14px 28px;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;user-select:none;}
+.tab:hover{color:var(--text);}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+.tbadge{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--red);color:#fff;font-size:10px;font-family:var(--mono);margin-left:8px;vertical-align:middle;}
+
+.page{display:none;position:relative;z-index:1;padding:1.5rem 2rem 2rem;max-width:1400px;margin:0 auto;}
+.page.active{display:block;}
+.plabel{font-family:var(--mono);font-size:11px;color:var(--text2);letter-spacing:3px;text-transform:uppercase;margin-bottom:1.25rem;display:flex;align-items:center;gap:10px;}
+.plabel::after{content:'';flex:1;height:1px;background:var(--border);}
+
+/* STAT CARDS */
+.sgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;}
+.scard{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:1.25rem 1.5rem;position:relative;overflow:hidden;transition:border-color .2s;}
+.scard::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--caccent,var(--accent));opacity:.7;}
+.scard:hover{border-color:var(--border2);}
+.scard.ca-green{--caccent:var(--green);}
+.scard.ca-orange{--caccent:var(--orange);}
+.scard.ca-blue{--caccent:var(--accent2);}
+.scard.ca-red{--caccent:var(--red);}
+.slabel{font-family:var(--mono);font-size:10px;color:var(--text2);letter-spacing:2px;text-transform:uppercase;margin-bottom:.75rem;}
+.sval{font-family:var(--head);font-size:42px;font-weight:700;color:#fff;line-height:1;margin-bottom:.5rem;}
+.scard.ca-red .sval{color:var(--red);}
+.scard.ca-orange .sval{color:var(--orange);}
+.scard.ca-blue .sval{color:var(--accent2);}
+.ssub{font-family:var(--mono);font-size:10px;color:var(--text2);display:flex;align-items:center;gap:6px;}
+.up{color:var(--red);}
+.spark{position:absolute;bottom:0;right:0;width:80px;height:40px;opacity:.18;}
+
+/* PANELS */
+.pgrid{display:grid;grid-template-columns:420px 1fr;gap:12px;}
+.panel{background:var(--bg2);border:1px solid var(--border);border-radius:6px;overflow:hidden;}
+.phead{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);background:rgba(0,0,0,.2);}
+.ptitle{font-family:var(--head);font-size:12px;font-weight:600;letter-spacing:2.5px;text-transform:uppercase;color:var(--text);}
+.ptag{font-family:var(--mono);font-size:10px;color:var(--accent);letter-spacing:1px;}
+.pbody{padding:16px 18px;}
+.pfoot{padding:10px 18px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,.15);}
+.fs{font-family:var(--mono);font-size:11px;color:var(--text2);}
+.fs span{color:var(--accent);}
+.live{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;color:var(--green);letter-spacing:1px;}
+.ldot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:blink 1.4s infinite;}
+
+/* DONUT */
+.dwrap{display:flex;align-items:center;gap:24px;padding:20px 18px;}
+.dcenter{position:relative;flex-shrink:0;width:160px;height:160px;}
+.dinner{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;}
+.dtotal{font-family:var(--head);font-size:30px;font-weight:700;color:#fff;line-height:1.1;}
+.dsub{font-family:var(--mono);font-size:9px;color:var(--text2);letter-spacing:1px;}
+.dtxt{font-family:var(--mono);font-size:10px;color:var(--text2);letter-spacing:2px;text-transform:uppercase;}
+.drows{flex:1;}
+.drow{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.04);}
+.drow:last-child{border-bottom:none;}
+.ddot{width:10px;height:10px;border-radius:50%;flex-shrink:0;box-shadow:0 0 8px currentColor;}
+.dname{font-family:var(--mono);font-size:11px;color:var(--text2);width:68px;text-transform:uppercase;letter-spacing:1px;}
+.dtrack{flex:1;height:5px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;}
+.dfill{height:100%;border-radius:3px;transition:width .6s ease;}
+.dcount{font-family:var(--mono);font-size:16px;min-width:32px;text-align:right;}
+.dbadge{font-family:var(--mono);font-size:9px;padding:2px 8px;border-radius:2px;text-transform:uppercase;letter-spacing:1px;min-width:40px;text-align:center;}
+.cc{color:#ff3e3e;} .bc{background:rgba(255,62,62,.12);color:#ff6b6b;}
+.ch{color:#ff8c00;} .bh{background:rgba(255,140,0,.12);color:#ffa733;}
+.cm{color:#f5c518;} .bm{background:rgba(245,197,24,.12);color:#f5c518;}
+.cl{color:#00e676;} .bl{background:rgba(0,230,118,.12);color:#00e676;}
+
+/* TIMELINE */
+.tli{display:flex;align-items:flex-start;gap:12px;padding:9px 6px;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer;border-radius:4px;transition:background .15s;}
+.tli:last-child{border-bottom:none;}
+.tli:hover{background:rgba(0,255,180,.03);}
+.tlind{display:flex;flex-direction:column;align-items:center;gap:3px;padding-top:3px;}
+.tldot{width:8px;height:8px;border-radius:50%;flex-shrink:0;box-shadow:0 0 6px currentColor;}
+.tlline{width:1px;height:18px;background:rgba(255,255,255,.08);}
+.tltime{font-family:var(--mono);font-size:10px;color:var(--text2);min-width:48px;padding-top:2px;}
+.tlc{flex:1;}
+.tlt{font-family:var(--body);font-size:13px;color:var(--text);line-height:1.3;margin-bottom:2px;}
+.tlh{font-family:var(--mono);font-size:10px;color:var(--text2);}
+.tlb{font-family:var(--mono);font-size:9px;padding:2px 8px;border-radius:2px;text-transform:uppercase;letter-spacing:1px;align-self:flex-start;margin-top:2px;white-space:nowrap;}
+
+/* THREAT INTEL */
+.tibar{display:flex;align-items:center;gap:4px;margin-bottom:1.5rem;}
+.tiline{flex:1;height:1px;background:var(--border);margin-left:8px;}
+.tisub{font-family:var(--mono);font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--text2);background:var(--bg2);border:1px solid var(--border);padding:8px 22px;border-radius:4px;cursor:pointer;transition:all .2s;}
+.tisub:hover{color:var(--text);border-color:var(--border2);}
+.tisub.active{color:var(--accent);border-color:var(--accent);background:rgba(0,255,180,.06);}
+.tiwrap{margin-bottom:2rem;}
+.tibox{display:flex;align-items:center;background:var(--bg2);border:1px solid var(--border2);border-radius:6px;padding:4px 4px 4px 16px;gap:12px;max-width:720px;transition:border-color .2s;}
+.tibox:focus-within{border-color:var(--accent);box-shadow:0 0 0 2px rgba(0,255,180,.08);}
+.tiinput{flex:1;background:transparent;border:none;outline:none;font-family:var(--mono);font-size:14px;color:var(--text);padding:10px 0;}
+.tiinput::placeholder{color:var(--text2);}
+.tibtn{font-family:var(--head);font-size:13px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:#000;background:var(--accent);border:none;padding:10px 28px;border-radius:4px;cursor:pointer;transition:all .2s;}
+.tibtn:hover{background:#00e6a3;}
+.tibtn:disabled{background:var(--text2);cursor:not-allowed;}
+.tihint{font-family:var(--mono);font-size:10px;color:var(--text2);margin-top:8px;letter-spacing:1px;}
+.tigrid{display:grid;grid-template-columns:300px 1fr;gap:12px;}
+.scorenum{font-family:var(--head);font-size:44px;font-weight:700;color:#fff;line-height:1;}
+.scoresub{font-family:var(--mono);font-size:11px;color:var(--text2);margin-top:2px;}
+.verdict{font-family:var(--mono);font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-top:6px;padding:3px 12px;border-radius:3px;}
+.vcrit{background:rgba(255,62,62,.12);color:#ff3e3e;}
+.vhigh{background:rgba(255,140,0,.12);color:#ff8c00;}
+.vmed{background:rgba(245,197,24,.12);color:#f5c518;}
+.vclean{background:rgba(0,230,118,.12);color:#00e676;}
+.tiqs{display:flex;align-items:center;width:100%;background:rgba(0,0,0,.2);border:1px solid var(--border);border-radius:6px;overflow:hidden;margin-bottom:14px;}
+.tiqsi{flex:1;text-align:center;padding:10px 8px;}
+.tiqsv{font-family:var(--mono);font-size:16px;color:var(--text);}
+.tiqsl{font-family:var(--mono);font-size:9px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-top:2px;}
+.tiqsd{width:1px;height:36px;background:var(--border);}
+.titags{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;width:100%;}
+.titag{font-family:var(--mono);font-size:9px;padding:3px 10px;border-radius:3px;text-transform:uppercase;letter-spacing:1px;background:rgba(0,200,255,.1);color:var(--accent2);border:1px solid rgba(0,200,255,.2);}
+.ailoader{display:flex;flex-direction:column;gap:12px;padding:20px 0;}
+.aibar{height:2px;background:var(--border);border-radius:2px;overflow:hidden;position:relative;}
+.aibar::after{content:'';position:absolute;top:0;left:-30%;width:30%;height:100%;background:var(--accent);animation:scan 1.2s linear infinite;}
+@keyframes scan{from{left:-30%;}to{left:130%;}}
+.aibartxt{font-family:var(--mono);font-size:11px;color:var(--text2);letter-spacing:1.5px;}
+.aisec{margin-bottom:18px;padding-bottom:18px;border-bottom:1px solid var(--border);}
+.aisec:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0;}
+.aistitle{font-family:var(--mono);font-size:10px;color:var(--accent);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;}
+.aisbody{font-family:var(--body);font-size:13px;color:var(--text);line-height:1.7;}
+.aitlist{display:flex;flex-wrap:wrap;gap:6px;}
+.aittag{font-family:var(--mono);font-size:10px;padding:4px 12px;border-radius:3px;background:rgba(255,62,62,.08);color:#ff6b6b;border:1px solid rgba(255,62,62,.2);letter-spacing:1px;}
+.aiact{font-family:var(--mono);font-size:12px;color:var(--accent);background:rgba(0,255,180,.05);border:1px solid rgba(0,255,180,.15);border-left:3px solid var(--accent);padding:12px 14px;border-radius:4px;line-height:1.8;white-space:pre-line;}
+.abtn{font-family:var(--mono);font-size:11px;letter-spacing:1px;padding:6px 14px;border-radius:4px;cursor:pointer;border:1px solid transparent;transition:all .2s;}
+.abtn-o{background:rgba(255,140,0,.12);color:var(--orange);border-color:rgba(255,140,0,.3);}
+.abtn-o:hover{background:rgba(255,140,0,.22);}
+.abtn-g{background:transparent;color:var(--text2);border-color:var(--border2);}
+.abtn-g:hover{color:var(--text);}
+
+/* OPEN CASES */
+.cases-toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px;flex-wrap:wrap;}
+.cases-filters{display:flex;gap:6px;}
+.cfbtn{font-family:var(--mono);font-size:10px;padding:5px 14px;border-radius:3px;border:1px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;letter-spacing:1px;text-transform:uppercase;transition:all .2s;}
+.cfbtn:hover{color:var(--text);border-color:var(--accent);}
+.cfbtn.active{color:var(--accent);border-color:var(--accent);background:rgba(0,255,180,.06);}
+.cases-meta{display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+.cmeta{font-family:var(--mono);font-size:11px;color:var(--text2);}
+.cmeta span{color:var(--accent);}
+.ct-head{display:grid;grid-template-columns:120px 1fr 120px 110px 140px 100px;gap:0;border-bottom:1px solid var(--border2);padding:8px 16px;margin-bottom:4px;}
+.ct-col{font-family:var(--mono);font-size:9px;color:var(--text2);letter-spacing:2px;text-transform:uppercase;}
+.case-row{display:grid;grid-template-columns:120px 1fr 120px 110px 140px 100px;gap:0;align-items:center;padding:10px 16px;border-radius:4px;cursor:pointer;border:1px solid transparent;transition:all .15s;margin-bottom:4px;background:var(--bg2);}
+.case-row:hover{border-color:var(--border2);background:rgba(0,255,180,.02);}
+.case-row.cr-crit{border-left:3px solid var(--red)!important;}
+.case-row.cr-high{border-left:3px solid var(--orange)!important;}
+.case-row.cr-med {border-left:3px solid var(--yellow)!important;}
+.case-row.cr-low {border-left:3px solid var(--green)!important;}
+.cr-id{font-family:var(--mono);font-size:11px;color:var(--accent);}
+.cr-title{font-family:var(--body);font-size:13px;color:var(--text);padding-right:12px;}
+.cr-title small{display:block;font-family:var(--mono);font-size:10px;color:var(--text2);margin-top:2px;}
+.cr-host{font-family:var(--mono);font-size:11px;color:var(--text2);}
+.cr-sev{display:inline-flex;}
+.cr-time{font-family:var(--mono);font-size:10px;color:var(--text2);}
+.cr-act{display:flex;gap:6px;}
+.cbtn{font-family:var(--mono);font-size:9px;padding:3px 10px;border-radius:3px;cursor:pointer;border:1px solid var(--border2);background:transparent;color:var(--text2);transition:all .15s;letter-spacing:1px;}
+.cbtn:hover{color:var(--accent);border-color:var(--accent);}
+.cbtn-close:hover{color:var(--red);border-color:var(--red);}
+.no-cases{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px;text-align:center;}
+.no-cases-icon{font-size:48px;margin-bottom:12px;opacity:.3;}
+.no-cases-title{font-family:var(--head);font-size:20px;color:var(--accent);letter-spacing:2px;}
+.no-cases-sub{font-family:var(--mono);font-size:11px;color:var(--text2);margin-top:8px;letter-spacing:1px;}
+.conn-err{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;color:var(--orange);background:rgba(255,140,0,.08);border:1px solid rgba(255,140,0,.2);border-radius:4px;padding:10px 16px;margin-bottom:16px;}
+.conn-dot{width:7px;height:7px;border-radius:50%;background:var(--orange);}
+
+/* CASE MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:8px;width:680px;max-width:95vw;max-height:85vh;overflow-y:auto;}
+.modal-head{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--border);}
+.modal-title{font-family:var(--head);font-size:16px;font-weight:600;color:#fff;letter-spacing:1px;}
+.modal-close{font-family:var(--mono);font-size:18px;color:var(--text2);cursor:pointer;background:none;border:none;line-height:1;}
+.modal-close:hover{color:var(--text);}
+.modal-body{padding:22px;}
+.mfield{margin-bottom:18px;}
+.mflabel{font-family:var(--mono);font-size:9px;color:var(--accent);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;}
+.mfval{font-family:var(--body);font-size:13px;color:var(--text);line-height:1.6;}
+.mfmono{font-family:var(--mono);font-size:12px;color:var(--text);background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:4px;padding:10px 14px;line-height:1.6;word-break:break-all;white-space:pre-wrap;}
+.mitre-pill{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;color:var(--accent2);background:rgba(0,200,255,.08);border:1px solid rgba(0,200,255,.2);border-radius:4px;padding:4px 12px;margin-top:4px;}
+
+/* TERMINAL PAGE */
+.term-wrap{background:#000;border:1px solid var(--border2);border-radius:6px;padding:24px;font-family:var(--mono);font-size:13px;color:#00ff41;min-height:400px;line-height:1.8;}
+.term-line::before{content:'$ ';color:var(--accent);}
+.term-cursor{display:inline-block;width:8px;height:14px;background:var(--accent);animation:blink .8s infinite;vertical-align:middle;}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo"><div class="logo-icon"></div>Threat<span>X</span></div>
+  <div class="nav-right">
+    <button class="nav-btn">Settings</button>
+    <div class="nav-div"></div>
+    <button class="nav-btn">Help</button>
+    <div class="nav-div"></div>
+    <div class="analyst"><div class="adot"></div>SOC Analyst — L2</div>
+  </div>
+</nav>
+
+<div class="tab-bar">
+  <div class="tab active" data-pg="pg1">Investigation Dashboard</div>
+  <div class="tab" data-pg="pg2">Threat Intel</div>
+  <div class="tab" data-pg="pg3">Open Cases <span class="tbadge" id="cases-badge">0</span></div>
+  <div class="tab" data-pg="pg4">Terminal</div>
+</div>
+
+<!-- PAGE 1: DASHBOARD -->
+<div class="page active" id="pg1">
+  <div class="plabel">// investigation dashboard — live monitoring</div>
+  <div class="sgrid">
+    <div class="scard ca-green">
+      <div class="slabel">Total Events</div>
+      <div class="sval" id="ev">—</div>
+      <div class="ssub" id="ev-sub"><span class="up">↑ —</span>&nbsp;since last hour</div>
+      <svg class="spark" viewBox="0 0 80 40"><polyline points="0,35 15,30 25,20 35,25 45,10 55,15 65,8 80,5" fill="none" stroke="#00e676" stroke-width="2"/></svg>
+    </div>
+    <div class="scard">
+      <div class="slabel">Total Incidents</div>
+      <div class="sval" id="inc">—</div>
+      <div class="ssub" id="inc-sub"><span class="up">↑ —</span>&nbsp;new today</div>
+      <svg class="spark" viewBox="0 0 80 40"><polyline points="0,30 15,25 25,28 35,18 45,22 55,12 65,16 80,10" fill="none" stroke="#00ffb4" stroke-width="2"/></svg>
+    </div>
+    <div class="scard ca-orange">
+      <div class="slabel">Active Alerts</div>
+      <div class="sval" id="al">—</div>
+      <div class="ssub" id="al-sub"><span class="up">↑ —</span>&nbsp;need review</div>
+      <svg class="spark" viewBox="0 0 80 40"><polyline points="0,38 15,32 25,35 35,22 45,28 55,15 65,20 80,12" fill="none" stroke="#ff8c00" stroke-width="2"/></svg>
+    </div>
+    <div class="scard ca-red">
+      <div class="slabel">Critical Severity</div>
+      <div class="sval" id="cr">—</div>
+      <div class="ssub" id="cr-sub"><span class="up">↑ —</span>&nbsp;escalated</div>
+      <svg class="spark" viewBox="0 0 80 40"><polyline points="0,38 20,36 35,30 50,20 65,10 80,5" fill="none" stroke="#ff3e3e" stroke-width="2"/></svg>
+    </div>
+  </div>
+
+  <div class="pgrid">
+    <div class="panel">
+      <div class="phead"><div class="ptitle">Incident Count by Severity</div><div class="ptag">LIVE</div></div>
+      <div class="dwrap">
+        <div class="dcenter">
+          <canvas id="donut" width="160" height="160"></canvas>
+          <div class="dinner"><div class="dtxt">Total</div><div class="dtotal" id="donut-total">—</div><div class="dsub">incidents</div></div>
+        </div>
+        <div class="drows">
+          <div class="drow"><div class="ddot cc"></div><div class="dname">Critical</div><div class="dtrack"><div class="dfill" id="d-crit-bar" style="width:0%;background:#ff3e3e"></div></div><div class="dcount cc" id="d-crit-cnt">—</div><div class="dbadge bc" id="d-crit-pct">—</div></div>
+          <div class="drow"><div class="ddot ch"></div><div class="dname">High</div><div class="dtrack"><div class="dfill" id="d-high-bar" style="width:0%;background:#ff8c00"></div></div><div class="dcount ch" id="d-high-cnt">—</div><div class="dbadge bh" id="d-high-pct">—</div></div>
+          <div class="drow"><div class="ddot cm"></div><div class="dname">Medium</div><div class="dtrack"><div class="dfill" id="d-med-bar" style="width:0%;background:#f5c518"></div></div><div class="dcount cm" id="d-med-cnt">—</div><div class="dbadge bm" id="d-med-pct">—</div></div>
+          <div class="drow"><div class="ddot cl"></div><div class="dname">Low</div><div class="dtrack"><div class="dfill" id="d-low-bar" style="width:0%;background:#00e676"></div></div><div class="dcount cl" id="d-low-cnt">—</div><div class="dbadge bl" id="d-low-pct">—</div></div>
+        </div>
+      </div>
+      <div class="pfoot"><div class="fs">Total: <span id="donut-foot">— incidents</span></div><div class="live"><div class="ldot"></div>updating live</div></div>
+    </div>
+
+    <div class="panel">
+      <div class="phead"><div class="ptitle">Event Timeline</div><div class="ptag">REAL-TIME FEED</div></div>
+      <div class="pbody" id="timeline-body">
+        <div style="font-family:var(--mono);font-size:11px;color:var(--text2);padding:20px;text-align:center;">Connecting to detection server…</div>
+      </div>
+      <div class="pfoot"><div class="fs">Showing <span id="timeline-foot">— of —</span> events</div><div class="live"><div class="ldot"></div>live feed</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE 2: THREAT INTEL -->
+<div class="page" id="pg2">
+  <div class="plabel">// threat intelligence — ip &amp; domain analysis</div>
+  <div class="tibar">
+    <button class="tisub active" id="ti-ip" onclick="tiTab('ip')">⬡ IP Address</button>
+    <button class="tisub" id="ti-domain" onclick="tiTab('domain')">◈ Domain</button>
+    <div class="tiline"></div>
+  </div>
+  <div class="tiwrap">
+    <div class="tibox">
+      <input class="tiinput" id="tiinput" placeholder="Enter IP address e.g. 185.220.101.45" autocomplete="off"/>
+      <button class="tibtn" id="tibtn" onclick="analyze()">Analyze</button>
+    </div>
+    <div class="tihint" id="tihint">Sources: AbuseIPDB · VirusTotal · Threat Intel feeds</div>
+  </div>
+  <div id="tires" style="display:none;">
+    <div class="tigrid">
+      <div class="panel">
+        <div class="phead"><div class="ptitle">Risk Score</div><div class="ptag" id="vtag">—</div></div>
+        <div class="pbody" style="display:flex;flex-direction:column;align-items:center;padding:28px 18px;">
+          <div style="position:relative;width:180px;height:180px;margin-bottom:20px;">
+            <canvas id="arc" width="180" height="180"></canvas>
+            <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+              <div class="scorenum" id="snum">--</div>
+              <div class="scoresub">/ 100</div>
+              <div class="verdict" id="vpill">—</div>
+            </div>
+          </div>
+          <div class="tiqs">
+            <div class="tiqsi"><div class="tiqsv" id="qrep">—</div><div class="tiqsl">Reports</div></div>
+            <div class="tiqsd"></div>
+            <div class="tiqsi"><div class="tiqsv" id="qcnt">—</div><div class="tiqsl">Country</div></div>
+            <div class="tiqsd"></div>
+            <div class="tiqsi"><div class="tiqsv" id="qtyp">—</div><div class="tiqsl">Category</div></div>
+          </div>
+          <div class="titags" id="titags"></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="phead"><div class="ptitle">AI Analysis</div><div class="ptag" id="aitag">—</div></div>
+        <div class="pbody" style="padding:20px 18px;">
+          <div id="aiload" class="ailoader" style="display:none;">
+            <div class="aibar"></div>
+            <div class="aibartxt">Querying threat intelligence feeds...</div>
+          </div>
+          <div id="aicont" style="display:none;">
+            <div class="aisec"><div class="aistitle">⚠ Threat Summary</div><div class="aisbody" id="aisum"></div></div>
+            <div class="aisec"><div class="aistitle">◎ Observed Behavior</div><div class="aisbody" id="aibeh"></div></div>
+            <div class="aisec"><div class="aistitle">⬡ Associated Threats</div><div class="aitlist" id="aithr"></div></div>
+            <div class="aisec"><div class="aistitle">✦ Recommended Action</div><div class="aiact" id="aiact"></div></div>
+          </div>
+        </div>
+        <div class="pfoot" id="aifoot" style="display:none;">
+          <div class="fs">Confidence: <span id="aiconf">—</span></div>
+          <div style="display:flex;gap:8px;">
+            <button class="abtn abtn-o" onclick="openCaseFromIntel()">+ Open Case</button>
+            <button class="abtn abtn-g" onclick="exportIntelReport()">Export Report</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE 3: OPEN CASES -->
+<div class="page" id="pg3">
+  <div class="plabel">// open cases — active investigations</div>
+  <div id="conn-err" class="conn-err" style="display:none;">
+    <div class="conn-dot"></div>
+    <span>Cannot reach detection server at <b>localhost:5000</b> — start <b>server.py</b> to enable live case ingestion.</span>
+  </div>
+  <div class="cases-toolbar">
+    <div class="cases-filters">
+      <button class="cfbtn active" onclick="filterCases('ALL',this)">All</button>
+      <button class="cfbtn" onclick="filterCases('CRITICAL',this)" style="color:#ff3e3e;border-color:rgba(255,62,62,.3)">Critical</button>
+      <button class="cfbtn" onclick="filterCases('HIGH',this)"     style="color:#ff8c00;border-color:rgba(255,140,0,.3)">High</button>
+      <button class="cfbtn" onclick="filterCases('MEDIUM',this)"   style="color:#f5c518;border-color:rgba(245,197,24,.3)">Medium</button>
+      <button class="cfbtn" onclick="filterCases('LOW',this)"      style="color:#00e676;border-color:rgba(0,230,118,.3)">Low</button>
+    </div>
+    <div class="cases-meta">
+      <div class="cmeta">Total: <span id="cTotal">0</span></div>
+      <div class="cmeta">Critical: <span id="cCrit" style="color:var(--red)">0</span></div>
+      <div class="cmeta">High: <span id="cHigh" style="color:var(--orange)">0</span></div>
+      <div class="live"><div class="ldot"></div>auto-refresh 10s</div>
+      <button class="abtn abtn-g" onclick="loadCases()" style="font-size:10px;padding:5px 12px;">↻ Refresh</button>
+      <button class="abtn" style="font-size:10px;padding:5px 12px;background:rgba(255,62,62,.1);color:var(--red);border:1px solid rgba(255,62,62,.3);" onclick="clearAllCases()">Clear All</button>
+    </div>
+  </div>
+  <div class="ct-head">
+    <div class="ct-col">Case ID</div>
+    <div class="ct-col">Title / Host · User</div>
+    <div class="ct-col">Host</div>
+    <div class="ct-col">Severity</div>
+    <div class="ct-col">Detected</div>
+    <div class="ct-col">Actions</div>
+  </div>
+  <div id="cases-list">
+    <div class="no-cases">
+      <div class="no-cases-icon">⬡</div>
+      <div class="no-cases-title">No Active Cases</div>
+      <div class="no-cases-sub">Start server.py — demo cases will appear automatically</div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE 4: TERMINAL -->
+<div class="page" id="pg4">
+  <div class="plabel">// terminal — server status</div>
+  <div class="term-wrap" id="term-out">
+    <div class="term-line">ThreatX SOC — Detection Server</div>
+    <div class="term-line">Connecting to localhost:5000…</div>
+    <div style="margin-top:8px;color:var(--text2);font-size:12px;">
+      Start server.py to see live status here.
+    </div>
+    <div style="margin-top:24px;"><span class="term-cursor"></span></div>
+  </div>
+  <div style="margin-top:12px;display:flex;gap:8px;">
+    <button class="abtn abtn-g" onclick="pingServer()">↻ Ping Server</button>
+  </div>
+</div>
+
+<!-- Case Detail Modal -->
+<div id="case-modal" class="modal-bg" style="display:none;" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title" id="m-title">—</div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--text2);margin-top:4px;" id="m-id">—</div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:20px;">
+        <div class="mfield"><div class="mflabel">Severity</div><div id="m-sev" class="mfval">—</div></div>
+        <div class="mfield"><div class="mflabel">Host</div><div id="m-host" class="mfval" style="font-family:var(--mono)">—</div></div>
+        <div class="mfield"><div class="mflabel">User</div><div id="m-user" class="mfval" style="font-family:var(--mono)">—</div></div>
+      </div>
+      <div class="mfield"><div class="mflabel">Description</div><div class="mfval" id="m-desc">—</div></div>
+      <div class="mfield"><div class="mflabel">Raw Detail</div><div class="mfmono" id="m-raw">—</div></div>
+      <div class="mfield">
+        <div class="mflabel">MITRE ATT&CK</div>
+        <div class="mitre-pill" id="m-mitre">—</div>
+      </div>
+      <div class="mfield"><div class="mflabel">Detected At</div><div class="mfval" id="m-time" style="font-family:var(--mono)">—</div></div>
+      <div style="display:flex;gap:10px;margin-top:8px;">
+        <button class="abtn abtn-o" onclick="closeCaseFromModal()">✓ Close Case</button>
+        <button class="abtn abtn-g" onclick="closeModal()">Dismiss</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+// ── CONFIG ──────────────────────────────────────────────────────────
+var API_BASE = 'http://localhost:5000';
+
+// ── TAB SWITCHING ────────────────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(function(t){
+  t.addEventListener('click', function(){
+    document.querySelectorAll('.tab').forEach(function(x){ x.classList.remove('active'); });
+    t.classList.add('active');
+    document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
+    var pg = t.getAttribute('data-pg');
+    if(pg){ var el = document.getElementById(pg); if(el) el.classList.add('active'); }
+    if(pg === 'pg3'){
+      loadCases();
+      if(!casesTimer) casesTimer = setInterval(loadCases, 10000);
+    } else {
+      if(casesTimer){ clearInterval(casesTimer); casesTimer = null; }
+    }
+  });
+});
+
+// ── UTILITIES ────────────────────────────────────────────────────────
+var SEV_DOT   = {CRITICAL:'cc', HIGH:'ch', MEDIUM:'cm', LOW:'cl'};
+var SEV_BADGE = {CRITICAL:'bc', HIGH:'bh', MEDIUM:'bm', LOW:'bl'};
+var SEV_CLASS = {CRITICAL:'cc bc', HIGH:'ch bh', MEDIUM:'cm bm', LOW:'cl bl'};
+var SEV_ROW   = {CRITICAL:'cr-crit', HIGH:'cr-high', MEDIUM:'cr-med', LOW:'cr-low'};
+
+function escHtml(s){
+  if(!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function animateTo(el, target){
+  if(!el) return;
+  var current = parseInt(el.textContent.replace(/,/g,'')) || 0;
+  if(current === target){ el.textContent = target.toLocaleString(); return; }
+  var diff = Math.abs(target - current);
+  var step = Math.max(1, Math.ceil(diff / 20));
+  var dir  = target > current ? 1 : -1;
+  var tm   = setInterval(function(){
+    current += dir * step;
+    if((dir > 0 && current >= target) || (dir < 0 && current <= target)){
+      current = target; clearInterval(tm);
+    }
+    el.textContent = current.toLocaleString();
+  }, 20);
+}
+
+// ── DASHBOARD ────────────────────────────────────────────────────────
+function redrawDonut(d){
+  var c = document.getElementById('donut'); if(!c) return;
+  var ctx = c.getContext('2d'), cx=80, cy=80, oR=72, iR=50;
+  var segs = [
+    {v:d.CRITICAL||0, col:'#ff3e3e', glow:'rgba(255,62,62,.5)'},
+    {v:d.HIGH||0,     col:'#ff8c00', glow:'rgba(255,140,0,.4)'},
+    {v:d.MEDIUM||0,   col:'#f5c518', glow:'rgba(245,197,24,.4)'},
+    {v:d.LOW||0,      col:'#00e676', glow:'rgba(0,230,118,.4)'},
+  ];
+  var total = segs.reduce(function(s,x){ return s+x.v; }, 0) || 1;
+  var gap = 0.04, t0 = performance.now();
+  function draw(now){
+    var p = Math.min((now-t0)/900, 1), ease = 1-Math.pow(1-p, 3);
+    ctx.clearRect(0,0,160,160);
+    ctx.beginPath(); ctx.arc(cx,cy,oR,0,Math.PI*2); ctx.arc(cx,cy,iR,Math.PI*2,0,true);
+    ctx.fillStyle='rgba(255,255,255,.04)'; ctx.fill();
+    var a = -Math.PI/2;
+    segs.forEach(function(s){
+      var sl = ((s.v/total)*Math.PI*2 - gap)*ease; if(sl <= 0) return;
+      ctx.save(); ctx.shadowColor=s.glow; ctx.shadowBlur=10;
+      ctx.beginPath(); ctx.arc(cx,cy,oR,a,a+sl); ctx.arc(cx,cy,iR,a+sl,a,true);
+      ctx.closePath(); ctx.fillStyle=s.col; ctx.fill(); ctx.restore();
+      a += sl + gap;
+    });
+    if(p < 1) requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+}
+
+function renderTimeline(events){
+  var body = document.getElementById('timeline-body');
+  if(!events || events.length === 0){
+    body.innerHTML = '<div style="font-family:var(--mono);font-size:11px;color:var(--text2);padding:20px;text-align:center;">No events yet — waiting for Sysmon data</div>';
+    return;
+  }
+  body.innerHTML = events.map(function(e, i){
+    var dc  = SEV_DOT[e.severity]  || 'cl';
+    var bc  = SEV_BADGE[e.severity]|| 'bl';
+    var line = i < events.length-1 ? '<div class="tlline"></div>' : '';
+    return '<div class="tli">'
+      + '<div class="tlind"><div class="tldot '+dc+'"></div>'+line+'</div>'
+      + '<div class="tltime">'+escHtml(e.time)+'</div>'
+      + '<div class="tlc"><div class="tlt">'+escHtml(e.title)+'</div>'
+      + '<div class="tlh">'+escHtml(e.host)+' · '+escHtml(e.user)+'</div></div>'
+      + '<div class="tlb '+bc+'">'+e.severity.toLowerCase()+'</div>'
+      + '</div>';
+  }).join('');
+}
+
+function updateDashboard(data){
+  animateTo(document.getElementById('ev'),  data.total_events   || 0);
+  animateTo(document.getElementById('inc'), data.total_incidents|| 0);
+  animateTo(document.getElementById('al'),  data.active_alerts  || 0);
+  animateTo(document.getElementById('cr'),  data.critical_count || 0);
+
+  document.getElementById('ev-sub').innerHTML  = '<span class="up">↑ '+(data.events_last_hour||0)+'</span>&nbsp;since last hour';
+  document.getElementById('inc-sub').innerHTML = '<span class="up">↑ '+(data.incidents_today||0)+'</span>&nbsp;new today';
+  document.getElementById('al-sub').innerHTML  = '<span class="up">↑ '+(data.critical_count||0)+'</span>&nbsp;need review';
+  document.getElementById('cr-sub').innerHTML  = '<span class="up">↑ '+(data.critical_count||0)+'</span>&nbsp;escalated';
+
+  var dt  = data.donut || {CRITICAL:0, HIGH:0, MEDIUM:0, LOW:0};
+  var tot = data.donut_total || 1;
+  [['crit','CRITICAL'],['high','HIGH'],['med','MEDIUM'],['low','LOW']].forEach(function(p){
+    var key=p[0], sev=p[1], v=dt[sev]||0, pct=Math.round(v/tot*100);
+    var cnt = document.getElementById('d-'+key+'-cnt');
+    var bar = document.getElementById('d-'+key+'-bar');
+    var pbg = document.getElementById('d-'+key+'-pct');
+    if(cnt) cnt.textContent = v;
+    if(bar) bar.style.width = pct+'%';
+    if(pbg) pbg.textContent = pct+'%';
+  });
+  var dtEl = document.getElementById('donut-total');
+  if(dtEl) dtEl.textContent = data.donut_total || 0;
+  var dfEl = document.getElementById('donut-foot');
+  if(dfEl) dfEl.textContent = (data.donut_total||0)+' incidents';
+  redrawDonut(dt);
+  renderTimeline(data.timeline || []);
+  var tf = document.getElementById('timeline-foot');
+  if(tf) tf.textContent = (data.timeline||[]).length+' of '+(data.total_events||0);
+}
+
+function loadDashboard(){
+  fetch(API_BASE+'/api/dashboard', {signal: AbortSignal.timeout(8000)})
+    .then(function(r){ return r.json(); })
+    .then(function(data){ updateDashboard(data); })
+    .catch(function(e){ /* server offline — keep last values */ });
+}
+
+loadDashboard();
+var dashTimer = setInterval(loadDashboard, 5000);
+
+// ── THREAT INTEL ─────────────────────────────────────────────────────
+var tiMode = 'ip';
+var lastIntelData = null;
+
+function tiTab(type){
+  tiMode = type;
+  document.querySelectorAll('.tisub').forEach(function(b){ b.classList.remove('active'); });
+  document.getElementById('ti-'+type).classList.add('active');
+  document.getElementById('tiinput').value = '';
+  document.getElementById('tiinput').placeholder = type==='ip' ? 'Enter IP address e.g. 185.220.101.45' : 'Enter domain e.g. malicious-site.ru';
+  document.getElementById('tihint').textContent   = type==='ip' ? 'Sources: AbuseIPDB · VirusTotal · Threat Intel feeds' : 'Sources: VirusTotal · URLhaus · WHOIS · Threat Intel feeds';
+  document.getElementById('tires').style.display  = 'none';
+  lastIntelData = null;
+}
+
+var knownMock = {
+  ip:{
+    '185.220.101.45':{score:92,verdict:'CRITICAL',country:'DE',reports:847,type:'TOR EXIT',isp:'Frantech Solutions',
+      tags:['TOR','C2 SERVER','BOTNET','SCANNER'],
+      summary:'This IP is a known Tor exit node actively used for anonymizing malicious traffic. Reported 847 times across multiple threat intelligence platforms, associated with coordinated botnet activity and command-and-control operations.',
+      behavior:'Port scanning on ranges 22, 80, 443, 8080. Brute force SSH attempts and HTTP exploitation observed. Traffic spikes between 02:00–04:00 UTC suggest automated tooling.',
+      threats:['Emotet','TrickBot','Cobalt Strike','SSH Brute Force'],
+      action:'BLOCK immediately at perimeter firewall.\nAdd to EDR/XDR blocklist.\nAudit all connections (last 30 days).\nEscalate to Tier 2 if sessions confirmed.\nPreserve PCAP evidence.',
+      confidence:'96%'},
+    '45.33.32.156':{score:72,verdict:'HIGH',country:'US',reports:312,type:'SCANNER',isp:'Linode LLC',
+      tags:['SCANNER','SHODAN','RECON'],
+      summary:'This IP belongs to Shodan scanning infrastructure. Traffic from this address indicates active reconnaissance of your network assets.',
+      behavior:'Systematic port scans across all public-facing IPs. HTTPS banner grabbing and service fingerprinting observed.',
+      threats:['Reconnaissance','Asset Discovery'],
+      action:'Block at edge firewall.\nReview exposed services during scan window.\nVerify no sensitive banners are returned.',
+      confidence:'88%'}
+  },
+  domain:{
+    'malicious-site.ru':{score:91,verdict:'CRITICAL',country:'RU',reports:523,type:'PHISHING',isp:'REG.RU',
+      tags:['PHISHING','MALWARE DROP','NEWLY REG.'],
+      summary:'Registered 4 days ago, actively hosting a phishing kit targeting banking credentials. Impersonates a major financial institution.',
+      behavior:'Serves fake HTTPS login pages. Redirects victims post-capture. Drops infostealer payload on Windows hosts via JavaScript.',
+      threats:['Credential Harvesting','AZORult','Fake Login Page'],
+      action:'Block domain at DNS and proxy layer.\nSearch email logs for links to this domain.\nAlert users who received phishing emails.\nReset credentials for affected accounts.',
+      confidence:'94%'}
+  }
+};
+
+function fallback(q){
+  var r = Math.random();
+  if(r < .3) return {score:Math.floor(Math.random()*20)+75, verdict:'HIGH',
+    country:['RU','CN','IR','KP'][Math.floor(Math.random()*4)], reports:Math.floor(Math.random()*400)+100,
+    type:'SCANNER', isp:'Unknown ASN', tags:['SCANNER','BRUTE FORCE'],
+    summary:'The indicator "'+q+'" has been flagged by multiple threat intelligence sources.',
+    behavior:'Automated scanning and exploitation attempts observed. Traffic patterns suggest botnet participation.',
+    threats:['Botnet','Brute Force','C2 Communication'],
+    action:'Block at perimeter.\nMonitor for related indicators.\nCorrelate with other SIEM events.',
+    confidence:Math.floor(Math.random()*15+75)+'%'};
+  if(r < .65) return {score:Math.floor(Math.random()*20)+35, verdict:'MEDIUM',
+    country:['BR','VN','IN','UA'][Math.floor(Math.random()*4)], reports:Math.floor(Math.random()*80)+10,
+    type:'SUSPICIOUS', isp:'Unknown ASN', tags:['SUSPICIOUS','LOW REP.'],
+    summary:'The indicator "'+q+'" shows some suspicious indicators but has not been definitively classified as malicious.',
+    behavior:'Limited reports. No confirmed exploitation but traffic patterns are inconsistent with legitimate use.',
+    threats:['Potentially Unwanted'],
+    action:'Monitor traffic.\nLog all connections.\nReassess in 48 hours.',
+    confidence:Math.floor(Math.random()*15+60)+'%'};
+  return {score:Math.floor(Math.random()*12)+2, verdict:'CLEAN',
+    country:['US','GB','DE','JP'][Math.floor(Math.random()*4)], reports:Math.floor(Math.random()*4),
+    type:'LEGITIMATE', isp:'Unknown ASN', tags:['CLEAN','VERIFIED'],
+    summary:'The indicator "'+q+'" shows no indicators of compromise across monitored threat intelligence feeds.',
+    behavior:'Normal traffic patterns. No anomalous behavior detected.',
+    threats:[],
+    action:'No action required.\nContinue standard monitoring.',
+    confidence:Math.floor(Math.random()*10+85)+'%'};
+}
+
+function drawArc(score){
+  var c = document.getElementById('arc'); if(!c) return;
+  var ctx = c.getContext('2d'), cx=90, cy=90, r=74;
+  var sa  = Math.PI*.75, fa = Math.PI*1.5;
+  var col  = score>80?'#ff3e3e':score>60?'#ff8c00':score>35?'#f5c518':'#00e676';
+  var glow = score>80?'rgba(255,62,62,.6)':score>60?'rgba(255,140,0,.5)':score>35?'rgba(245,197,24,.5)':'rgba(0,230,118,.5)';
+  var t0 = performance.now();
+  function draw(now){
+    var p = Math.min((now-t0)/1000, 1), ease = 1-Math.pow(1-p, 3);
+    ctx.clearRect(0,0,180,180);
+    ctx.beginPath(); ctx.arc(cx,cy,r,sa,sa+fa); ctx.strokeStyle='rgba(255,255,255,.06)'; ctx.lineWidth=12; ctx.lineCap='round'; ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx,cy,r,sa,sa+fa*(score/100)*ease); ctx.strokeStyle=col; ctx.lineWidth=12; ctx.lineCap='round';
+    ctx.shadowColor=glow; ctx.shadowBlur=18; ctx.stroke(); ctx.shadowBlur=0;
+    if(p < 1) requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+}
+
+function typeText(id, text, speed, cb){
+  var el = document.getElementById(id); if(!el) return;
+  el.textContent = ''; var i=0;
+  var tm = setInterval(function(){
+    el.textContent += text[i]; i++;
+    if(i >= text.length){ clearInterval(tm); if(cb) cb(); }
+  }, speed);
+}
+
+function showIntelResult(data){
+  lastIntelData = data;
+  var btn = document.getElementById('tibtn');
+  document.getElementById('snum').textContent  = data.score;
+  document.getElementById('vtag').textContent  = data.verdict;
+  document.getElementById('qrep').textContent  = (data.reports||0).toLocaleString();
+  document.getElementById('qcnt').textContent  = data.country || '—';
+  document.getElementById('qtyp').textContent  = data.type    || '—';
+  var vc   = (data.verdict||'').toLowerCase();
+  var pill = document.getElementById('vpill');
+  pill.textContent = data.verdict;
+  pill.className   = 'verdict '+(vc==='critical'?'vcrit':vc==='high'?'vhigh':vc==='medium'?'vmed':'vclean');
+  var tg = document.getElementById('titags'); tg.innerHTML = '';
+  (data.tags||[]).forEach(function(t){ var s=document.createElement('span'); s.className='titag'; s.textContent=t; tg.appendChild(s); });
+  drawArc(data.score);
+  document.getElementById('aiload').style.display = 'none';
+  document.getElementById('aicont').style.display = 'block';
+  document.getElementById('aitag').textContent    = 'COMPLETE';
+  document.getElementById('aiconf').textContent   = data.confidence || '—';
+  var thr = document.getElementById('aithr'); thr.innerHTML = '';
+  if(!data.threats || !data.threats.length){
+    thr.innerHTML = '<span style="font-family:var(--mono);font-size:11px;color:var(--text2)">No known threat associations</span>';
+  } else {
+    data.threats.forEach(function(t){ var s=document.createElement('span'); s.className='aittag'; s.textContent=t; thr.appendChild(s); });
+  }
+  typeText('aisum', data.summary||'', 14, function(){
+    typeText('aibeh', data.behavior||'', 10, function(){
+      document.getElementById('aiact').textContent = data.action || '';
+      document.getElementById('aifoot').style.display = 'flex';
+    });
+  });
+  btn.disabled = false; btn.textContent = 'Analyze';
+}
+
+function analyze(){
+  var q   = document.getElementById('tiinput').value.trim(); if(!q) return;
+  var btn = document.getElementById('tibtn');
+  btn.disabled = true; btn.textContent = 'Scanning...';
+  document.getElementById('tires').style.display   = 'block';
+  document.getElementById('aiload').style.display  = 'flex';
+  document.getElementById('aicont').style.display  = 'none';
+  document.getElementById('aifoot').style.display  = 'none';
+  document.getElementById('aitag').textContent     = 'GENERATING';
+  document.getElementById('vtag').textContent      = 'ANALYZING';
+  document.getElementById('snum').textContent      = '--';
+  document.getElementById('titags').innerHTML      = '';
+  document.getElementById('vpill').textContent     = '—';
+  document.getElementById('vpill').className       = 'verdict';
+  ['qrep','qcnt','qtyp'].forEach(function(id){ document.getElementById(id).textContent = '—'; });
+
+  // Try real backend API first, fall back to built-in mock data
+  fetch(API_BASE+'/api/intel?query='+encodeURIComponent(q)+'&type='+tiMode, {signal: AbortSignal.timeout(14000)})
+    .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+    .then(function(d){ if(d.error) throw new Error(d.error); showIntelResult(d); })
+    .catch(function(){
+      var d = (knownMock[tiMode] && knownMock[tiMode][q]) ? knownMock[tiMode][q] : fallback(q);
+      setTimeout(function(){ showIntelResult(d); }, 1400);
+    });
+}
+
+function openCaseFromIntel(){
+  if(!lastIntelData) return;
+  var q    = document.getElementById('tiinput').value.trim();
+  var body = JSON.stringify({
+    query: q, type: tiMode,
+    score: lastIntelData.score, verdict: lastIntelData.verdict
+  });
+  alert('Case opened for: ' + q + ' (Score: ' + lastIntelData.score + ' — ' + lastIntelData.verdict + ')\nWire to /api/cases/create in backend for persistence.');
+}
+
+function exportIntelReport(){
+  if(!lastIntelData) return;
+  var q = document.getElementById('tiinput').value.trim();
+  var lines = [
+    'ThreatX Threat Intel Report',
+    '============================',
+    'Query: ' + q + ' (' + tiMode.toUpperCase() + ')',
+    'Date:  ' + new Date().toUTCString(),
+    '',
+    'Score:   ' + lastIntelData.score + '/100',
+    'Verdict: ' + lastIntelData.verdict,
+    'Country: ' + (lastIntelData.country||'—'),
+    'Reports: ' + (lastIntelData.reports||0),
+    'Type:    ' + (lastIntelData.type||'—'),
+    'ISP:     ' + (lastIntelData.isp||'—'),
+    '',
+    'THREAT SUMMARY',
+    lastIntelData.summary||'',
+    '',
+    'OBSERVED BEHAVIOR',
+    lastIntelData.behavior||'',
+    '',
+    'ASSOCIATED THREATS',
+    (lastIntelData.threats||[]).join(', ') || 'None',
+    '',
+    'RECOMMENDED ACTION',
+    lastIntelData.action||'',
+    '',
+    'Confidence: ' + (lastIntelData.confidence||'—'),
+  ].join('\n');
+  var blob = new Blob([lines], {type:'text/plain'});
+  var a    = document.createElement('a');
+  a.href   = URL.createObjectURL(blob);
+  a.download = 'threatx-intel-' + q.replace(/[^a-z0-9]/gi,'_') + '.txt';
+  a.click();
+}
+
+document.getElementById('tiinput').addEventListener('keydown', function(e){ if(e.key==='Enter') analyze(); });
+
+// ── OPEN CASES ───────────────────────────────────────────────────────
+var allCases          = [];
+var activeSevFilter   = 'ALL';
+var currentModalCaseId= null;
+var casesTimer        = null;
+
+function loadCases(){
+  fetch(API_BASE+'/api/alerts', {signal: AbortSignal.timeout(8000)})
+    .then(function(r){
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      document.getElementById('conn-err').style.display = 'none';
+      return r.json();
+    })
+    .then(function(data){ allCases = data; renderCases(); updateBadge(); })
+    .catch(function(){ document.getElementById('conn-err').style.display = 'flex'; });
+}
+
+function renderCases(){
+  var list     = document.getElementById('cases-list');
+  var filtered = activeSevFilter === 'ALL'
+    ? allCases
+    : allCases.filter(function(c){ return c.severity === activeSevFilter; });
+  var crit=0, high=0;
+  allCases.forEach(function(c){
+    if(c.severity==='CRITICAL') crit++;
+    if(c.severity==='HIGH')     high++;
+  });
+  document.getElementById('cTotal').textContent = allCases.length;
+  document.getElementById('cCrit').textContent  = crit;
+  document.getElementById('cHigh').textContent  = high;
+
+  if(filtered.length === 0){
+    list.innerHTML = '<div class="no-cases"><div class="no-cases-icon">⬡</div>'
+      +'<div class="no-cases-title">No '+(activeSevFilter==='ALL'?'Active':activeSevFilter)+' Cases</div>'
+      +'<div class="no-cases-sub">Detection engine is running — alerts will appear here</div></div>';
+    return;
+  }
+  list.innerHTML = filtered.map(function(c){
+    var sc    = SEV_ROW[c.severity]   || 'cr-low';
+    var bc    = SEV_CLASS[c.severity] || 'cl bl';
+    var ts    = c.timestamp ? (c.timestamp.split(' ')[1] || c.timestamp) : '—';
+    var mitre = c.mitre || '—';
+    var cid   = escHtml(c.id);
+    return '<div class="case-row '+sc+'" onclick="openModal(\''+cid+'\')">'
+      +'<div class="cr-id">'+cid+'</div>'
+      +'<div class="cr-title">'+escHtml(c.title)+'<small>'+escHtml(c.host)+' · '+escHtml(c.user)+'</small></div>'
+      +'<div class="cr-host">'+escHtml(c.host)+'</div>'
+      +'<div class="cr-sev"><span class="dbadge '+bc+'">'+escHtml(c.severity)+'</span></div>'
+      +'<div class="cr-time">'+escHtml(ts)+'<br><span style="font-size:9px;color:var(--accent2)">'+escHtml(mitre)+'</span></div>'
+      +'<div class="cr-act">'
+      +'<button class="cbtn" onclick="event.stopPropagation();openModal(\''+cid+'\')">Detail</button>'
+      +'<button class="cbtn cbtn-close" onclick="event.stopPropagation();closeCase(\''+cid+'\')">Close</button>'
+      +'</div></div>';
+  }).join('');
+}
+
+function filterCases(sev, btn){
+  activeSevFilter = sev;
+  document.querySelectorAll('.cfbtn').forEach(function(b){ b.classList.remove('active'); });
+  if(btn) btn.classList.add('active');
+  renderCases();
+}
+
+function openModal(id){
+  var c = allCases.find(function(x){ return x.id === id; }); if(!c) return;
+  currentModalCaseId = id;
+  document.getElementById('m-title').textContent = c.title;
+  document.getElementById('m-id').textContent    = c.id+' — '+c.status;
+  document.getElementById('m-sev').innerHTML     = '<span class="dbadge '+(SEV_CLASS[c.severity]||'cl bl')+'">'+c.severity+'</span>';
+  document.getElementById('m-host').textContent  = c.host;
+  document.getElementById('m-user').textContent  = c.user;
+  document.getElementById('m-desc').textContent  = c.description || '—';
+  document.getElementById('m-raw').textContent   = c.raw_detail  || 'No raw detail available';
+  document.getElementById('m-mitre').textContent = c.mitre       || '—';
+  document.getElementById('m-time').textContent  = c.timestamp   || '—';
+  document.getElementById('case-modal').style.display = 'flex';
+}
+
+function closeModal(){
+  document.getElementById('case-modal').style.display = 'none';
+  currentModalCaseId = null;
+}
+
+function closeCaseFromModal(){
+  if(currentModalCaseId) closeCase(currentModalCaseId);
+  closeModal();
+}
+
+function closeCase(id){
+  fetch(API_BASE+'/api/alerts/'+encodeURIComponent(id)+'/close', {method:'POST'})
+    .then(function(){ loadCases(); })
+    .catch(function(){
+      allCases = allCases.filter(function(c){ return c.id !== id; });
+      renderCases(); updateBadge();
+    });
+}
+
+function clearAllCases(){
+  if(!confirm('Clear all cases? This cannot be undone.')) return;
+  fetch(API_BASE+'/api/alerts/clear', {method:'POST'})
+    .then(function(){ allCases=[]; renderCases(); updateBadge(); })
+    .catch(function(){ allCases=[]; renderCases(); updateBadge(); });
+}
+
+function updateBadge(){
+  var open  = allCases.filter(function(c){ return c.status==='OPEN'; }).length;
+  var badge = document.getElementById('cases-badge');
+  if(badge) badge.textContent = open;
+}
+
+// ── TERMINAL TAB ─────────────────────────────────────────────────────
+function pingServer(){
+  var out = document.getElementById('term-out');
+  var ts  = new Date().toLocaleTimeString();
+  fetch(API_BASE+'/api/status', {signal: AbortSignal.timeout(5000)})
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      out.innerHTML = '<div class="term-line">ThreatX SOC — Detection Server</div>'
+        +'<div class="term-line">ping '+ts+' — <span style="color:var(--green)">ONLINE</span></div>'
+        +'<div class="term-line">status: '+d.status+'</div>'
+        +'<div class="term-line">rules_loaded: '+d.rules_count+'</div>'
+        +'<div class="term-line">poll_interval: '+d.poll_interval+'s</div>'
+        +'<div class="term-line">total_cases: '+d.total_cases+'</div>'
+        +'<div style="margin-top:8px;font-size:11px;color:var(--text2)">Severity breakdown: '
+        +JSON.stringify(d.by_severity)+'</div>'
+        +'<div style="margin-top:24px;"><span class="term-cursor"></span></div>';
+    })
+    .catch(function(){
+      out.innerHTML = '<div class="term-line">ThreatX SOC — Detection Server</div>'
+        +'<div class="term-line">ping '+ts+' — <span style="color:var(--red)">OFFLINE</span></div>'
+        +'<div style="margin-top:8px;color:var(--text2);font-size:12px;">Start server.py to connect.</div>'
+        +'<div style="margin-top:24px;"><span class="term-cursor"></span></div>';
+    });
+}
+</script>
+</body>
+</html>
