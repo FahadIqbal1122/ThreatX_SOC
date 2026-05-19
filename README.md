@@ -19,40 +19,55 @@ A real-time Security Operations Center (SOC) dashboard for Windows threat detect
 
 ---
 
-## Requirements
+## Installation (Windows)
 
-| Requirement | Notes |
-|---|---|
-| Python 3.8+ | [python.org](https://www.python.org/downloads/) |
-| Windows (recommended) | For live Sysmon event reading |
-| Sysmon (optional) | Required for real event detection |
-| AbuseIPDB API key | Free tier sufficient |
-| VirusTotal API key | Free tier sufficient |
+### Step 1 — Install Python
 
----
+1. Go to **https://www.python.org/downloads/** and download Python 3.x
+2. Run the installer
+3. On the **first screen**, check **"Add python.exe to PATH"** before clicking Install Now
 
-## Quick Start
+> If you forget to check that box, Python will install but the `python` command won't work in PowerShell.
 
-### 1. Clone the repository
+### Step 2 — Fix the Windows Store alias (common issue)
 
-```bash
-git clone https://github.com/your-username/threatx-soc.git
-cd threatx-soc
+Windows ships with a fake `python.exe` that opens the Microsoft Store instead of running Python. Disable it:
+
+**Option A — Settings UI:**
+- Go to **Settings → Apps → Advanced app settings → App execution aliases**
+- Turn **OFF** both `python.exe` and `python3.exe`
+
+**Option B — PowerShell command (paste and run):**
+```powershell
+$py = "C:\Users\$env:USERNAME\AppData\Local\Programs\Python\Python313"
+$env:Path = "$py;$py\Scripts;" + $env:Path
+[Environment]::SetEnvironmentVariable("Path","$py;$py\Scripts;" + [Environment]::GetEnvironmentVariable("Path","User"),"User")
+Rename-Item "$env:LOCALAPPDATA\Microsoft\WindowsApps\python.exe" "python_disabled.exe" -ErrorAction SilentlyContinue
+Rename-Item "$env:LOCALAPPDATA\Microsoft\WindowsApps\python3.exe" "python3_disabled.exe" -ErrorAction SilentlyContinue
+python --version
 ```
 
-### 2. Install Python dependencies
+If the last line prints `Python 3.x.x` you are good to go.
 
-```bash
+> If your Python version is not 3.13, replace `Python313` in the path above with your version folder name (e.g. `Python311` for 3.11).
+
+### Step 3 — Install dependencies
+
+Open PowerShell and run:
+
+```powershell
 pip install flask flask-cors requests python-dotenv
 ```
 
-### 3. Configure environment variables
+### Step 4 — Configure API keys (optional — for live Threat Intel)
 
-```bash
-cp .env.example .env
+Copy the example env file:
+
+```powershell
+copy .env.example .env
 ```
 
-Open `.env` and fill in your API keys:
+Open `.env` and fill in your keys:
 
 ```env
 ABUSEIPDB_KEY=your_key_here
@@ -66,21 +81,16 @@ VIRUSTOTAL_KEY=your_key_here
 - **VirusTotal** — Sign up at [virustotal.com](https://www.virustotal.com) → Profile icon → API Key
   - Free tier: 4 lookups/min, 500/day
 
-### 4. Start the server
+> API keys are optional. Without them, Threat Intel uses built-in mock data.
 
-**On Windows — run as Administrator** (required for Sysmon log access):
+### Step 5 — Run the server
 
-```
+Open PowerShell **as Administrator** (right-click → Run as Administrator):
+
+```powershell
+cd "C:\Users\FAHAD IQBAL\Desktop\wld"
 python server.py
 ```
-
-**On WSL or macOS (demo mode):**
-
-```bash
-python3 server.py
-```
-
-> Without administrator privileges or Sysmon, the server runs in demo mode and injects 8 realistic sample cases automatically so the dashboard is fully functional.
 
 You should see:
 
@@ -90,37 +100,31 @@ You should see:
   !! Run as Administrator for full log access !!
 ============================================================
 
-[+] AbuseIPDB key  : 3c6a9c********** (loaded)
-[+] VirusTotal key : aed78d********** (loaded)
-
 [+] Detection engine started (13 rules, every 30s)
 [+] Flask API running on http://0.0.0.0:5000
 [+] Open dashboard.html in your browser
 ```
 
-### 5. Open the dashboard
+### Step 6 — Open the dashboard
 
-Open `dashboard.html` directly in your browser:
+Double-click `dashboard.html` in File Explorer, or drag it into Chrome/Edge.
 
-- **Windows:** Double-click `dashboard.html` in File Explorer, or drag it into Chrome/Edge/Firefox
-- **Or:** In your browser address bar: `file:///C:/path/to/threatx-soc/dashboard.html`
-
-> Do **not** navigate to `http://localhost:5000` — Flask only serves the API. The HTML file is opened directly.
+> Do **not** go to `http://localhost:5000` — Flask only serves the API. The HTML file opens directly from disk.
 
 ---
 
-## Installing Sysmon (for real detections on Windows)
+## Installing Sysmon (for real detections)
 
-Sysmon provides the detailed Windows event logging that powers the detection engine.
+Without Sysmon the server runs in demo mode with sample cases. To enable live detection:
 
 1. Download Sysmon from [Microsoft Sysinternals](https://learn.microsoft.com/en-us/sysinternals/downloads/sysmon)
-2. Download a recommended config (e.g. [SwiftOnSecurity](https://github.com/SwiftOnSecurity/sysmon-config)):
-   ```
+2. Download a config file (run in PowerShell as Administrator):
+   ```powershell
    Invoke-WebRequest -Uri https://raw.githubusercontent.com/SwiftOnSecurity/sysmon-config/master/sysmonconfig-export.xml -OutFile sysmonconfig.xml
    ```
-3. Install Sysmon with the config (run as Administrator):
-   ```
-   sysmon64.exe -accepteula -i sysmonconfig.xml
+3. Install Sysmon (run as Administrator):
+   ```powershell
+   .\sysmon64.exe -accepteula -i sysmonconfig.xml
    ```
 4. Restart `server.py` — the detection engine will now read live events every 30 seconds.
 
@@ -157,16 +161,14 @@ threatx-soc/
 
 ## Detection Rules
 
-The engine runs 13 rules on every Sysmon poll, each mapped to a MITRE ATT&CK technique:
-
 | Rule | Severity | MITRE |
 |---|---|---|
 | PowerShell EncodedCommand | CRITICAL | T1059.001 |
 | LSASS Memory Access | CRITICAL | T1003.001 |
 | Process Tampering / Hollowing | CRITICAL | T1055.012 |
 | Outbound C2 Port (4444, 1337…) | CRITICAL | T1071 |
-| Office App Spawned Shell | HIGH | T1566.001 |
 | Mimikatz / Credential Dumping | CRITICAL | T1003 |
+| Office App Spawned Shell | HIGH | T1566.001 |
 | LOLBAS Abuse (certutil, mshta…) | HIGH | T1218 |
 | Suspicious Outbound from Shell | HIGH | T1071 |
 | Process Injection (RemoteThread) | HIGH | T1055 |
@@ -179,31 +181,37 @@ The engine runs 13 rules on every Sysmon poll, each mapped to a MITRE ATT&CK tec
 
 ## Configuration
 
-All settings are controlled via `.env`:
+All settings are in `.env`:
 
 | Variable | Default | Description |
 |---|---|---|
-| `ABUSEIPDB_KEY` | — | AbuseIPDB API key (required for live threat intel) |
-| `VIRUSTOTAL_KEY` | — | VirusTotal API key (required for live threat intel) |
-| `FLASK_HOST` | `0.0.0.0` | Host to bind the Flask server |
-| `FLASK_PORT` | `5000` | Port to bind the Flask server |
+| `ABUSEIPDB_KEY` | — | AbuseIPDB API key |
+| `VIRUSTOTAL_KEY` | — | VirusTotal API key |
+| `FLASK_HOST` | `0.0.0.0` | Host to bind Flask |
+| `FLASK_PORT` | `5000` | Port to bind Flask |
 | `POLL_INTERVAL` | `30` | Seconds between Sysmon polls |
 
 ---
 
 ## Troubleshooting
 
+**`python` opens Notepad or Microsoft Store**
+→ The Windows Store alias is overriding Python. Run the Step 2 PowerShell command above.
+
+**`python` command not recognized**
+→ Python is not on PATH. Run the Step 2 PowerShell command above, then close and reopen PowerShell.
+
+**"Requested registry access is not allowed"**
+→ Use `"User"` scope instead of `"Machine"` when setting environment variables, as shown in Step 2.
+
 **"Cannot reach detection server"**
 → `server.py` is not running. Start it and refresh the page.
 
-**"Sysmon read error: creationflags is only supported on Windows"**
-→ You are running on WSL/Linux. Demo mode activates automatically — no action needed.
+**`[!] wevtutil not found`**
+→ You are running on WSL or Linux. Demo mode activates automatically — no action needed. For live detection, run `server.py` from a native Windows PowerShell as Administrator.
 
-**Threat Intel returns mock data instead of real results**
-→ API keys are not set or invalid. Check `server.py` startup output for key status.
-
-**VirusTotal returns 401**
-→ Key is wrong. Get it from [virustotal.com/gui/my-apikey](https://www.virustotal.com/gui/my-apikey).
+**Threat Intel returns mock data**
+→ API keys are not set. Check `.env` and restart `server.py`.
 
 **No cases appear after starting on Windows**
 → Run `server.py` as Administrator. Sysmon must be installed. Wait up to 30 seconds for the first poll.
