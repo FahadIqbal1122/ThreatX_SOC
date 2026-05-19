@@ -17,7 +17,7 @@ Exposes:
 import threading
 import subprocess
 import xml.etree.ElementTree as ET
-from datetime import datetime
+from datetime import datetime, timezone
 import time
 import uuid
 import sys
@@ -59,7 +59,7 @@ def _xml_data(event, field):
     return ""
 
 def _make_case(title, severity, host, user, timestamp, description, raw_detail, mitre, source_eid):
-    ts  = timestamp or datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    ts  = timestamp or datetime.now(timezone.utc).replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S")
     uid = uuid.uuid4().hex[:4].upper()
     stamp = ts.replace("-","").replace(" ","").replace(":","")[:12]
     return {
@@ -77,6 +77,9 @@ def _make_case(title, severity, host, user, timestamp, description, raw_detail, 
     }
 
 def _read_sysmon(count=200):
+    # Returns None if wevtutil is unavailable (demo mode should activate).
+    # Returns [] if wevtutil ran fine but the log is empty (wait, don't demo).
+    # Returns list of events on success.
     try:
         result = subprocess.run(
             ["wevtutil", "qe", SYSMON_LOG, f"/c:{count}", "/rd:true", "/f:xml"],
@@ -84,7 +87,7 @@ def _read_sysmon(count=200):
             **_SUBPROCESS_FLAGS,
         )
         if result.returncode != 0:
-            return []
+            return None
         root = ET.fromstring(f"<Root>{result.stdout}</Root>")
         out  = []
         for ev in root.findall("e:Event", NS):
@@ -106,10 +109,10 @@ def _read_sysmon(count=200):
         if not _no_sysmon_warned:
             print("[detector] wevtutil not found — run as Administrator on Windows. Inserting demo cases.")
             _no_sysmon_warned = True
-        return []
+        return None
     except Exception as e:
         print(f"[detector] Sysmon read error: {e}")
-        return []
+        return None
 
 
 # ── Detection rules ───────────────────────────────────────────────────
@@ -329,7 +332,7 @@ def _inject_demo():
     if _demo_injected:
         return
     _demo_injected = True
-    now = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    now = datetime.now(timezone.utc).replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S")
     demo = [
         _make_case(
             "PowerShell EncodedCommand Execution", "CRITICAL",
@@ -392,6 +395,8 @@ def _inject_demo():
             "StartAddress: 0x7ff8a23c1000",
             "T1055 — Process Injection", 8),
     ]
+    for d in demo:
+        d["_demo"] = True
     with cases_lock:
         cases.extend(demo)
     print(f"[detector] Injected {len(demo)} demo cases (Sysmon unavailable)")
@@ -400,9 +405,24 @@ def _inject_demo():
 # ── Detection loop ────────────────────────────────────────────────────
 def _poll_once():
     events = _read_sysmon(200)
-    if not events:
+
+    if events is None:
+        # wevtutil unavailable — inject demo cases once
         _inject_demo()
         return
+
+    if not events:
+        # wevtutil works but log is empty — Sysmon just started, wait next poll
+        print("[detector] Sysmon log empty — waiting for events...")
+        return
+
+    # Real events found — clear any previously injected demo cases
+    global _demo_injected
+    if _demo_injected:
+        with cases_lock:
+            cases[:] = [c for c in cases if not c.get("_demo")]
+        _demo_injected = False
+        print("[detector] Real Sysmon events detected — demo cases cleared.")
 
     new_cases = []
     for ev in events:

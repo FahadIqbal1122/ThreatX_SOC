@@ -21,7 +21,7 @@ The HTML dashboard polls GET /api/alerts every 5 seconds.
 import threading
 import subprocess
 import xml.etree.ElementTree as ET
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import sys
 import os
 from pathlib import Path
@@ -271,7 +271,7 @@ def _get_dashboard_data():
     events   = _read_sysmon(150)
     total_log = _sysmon_log_total()          # actual log record count
 
-    now_dt   = datetime.utcnow()
+    now_dt   = datetime.now(timezone.utc).replace(tzinfo=None)
     hour_ago = now_dt - timedelta(hours=1)
     today    = now_dt.date()
 
@@ -447,7 +447,7 @@ def _analyze_domain(domain):
     cd      = va.get("creation_date")
     country = va.get("country","—")
     if cd:
-        age_days = (datetime.utcnow()-datetime.utcfromtimestamp(cd)).days
+        age_days = (datetime.now(timezone.utc).replace(tzinfo=None)-datetime.utcfromtimestamp(cd)).days
         age_str  = f"{age_days}d old"
     else:
         age_days,age_str = 9999,"—"
